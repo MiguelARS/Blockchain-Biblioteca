@@ -1,7 +1,6 @@
 package main
 
 import (
-	"crypto/md5"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -15,13 +14,13 @@ import (
 
 type Block struct {
 	Pos       int
-	Data      BookCheckout
+	Data      Library
 	Timestamp string
 	Hash      string
 	PrevHash  string
 }
 
-type BookCheckout struct {
+type Library struct {
 	BookID       string `json:"book_id"`
 	User         string `json:"user"`
 	CheckoutDate string `json:"checkout_date"`
@@ -46,11 +45,11 @@ func (b *Block) generateHash() {
 	b.Hash = hex.EncodeToString(hash.Sum(nil))
 }
 
-func CreateBlock(prevBlock *Block, checkoutItem BookCheckout) *Block {
+func CreateBlock(prevBlock *Block, library Library) *Block {
 	block := &Block{}
 	block.Pos = prevBlock.Pos + 1
 	block.Timestamp = time.Now().String()
-	block.Data = checkoutItem
+	block.Data = library
 	block.PrevHash = prevBlock.Hash
 	block.generateHash()
 
@@ -63,7 +62,7 @@ type Blockchain struct {
 
 var BlockChain *Blockchain
 
-func (bc *Blockchain) AddBlock(data BookCheckout) {
+func (bc *Blockchain) AddBlock(data Library) {
 
 	prevBlock := bc.blocks[len(bc.blocks)-1]
 
@@ -75,7 +74,7 @@ func (bc *Blockchain) AddBlock(data BookCheckout) {
 }
 
 func GenesisBlock() *Block {
-	return CreateBlock(&Block{}, BookCheckout{IsGenesis: true})
+	return CreateBlock(&Block{}, Library{IsGenesis: true})
 }
 
 func NewBlockchain() *Blockchain {
@@ -118,19 +117,19 @@ func getBlockchain(w http.ResponseWriter, r *http.Request) {
 }
 
 func writeBlock(w http.ResponseWriter, r *http.Request) {
-	var checkoutItem BookCheckout
-	if err := json.NewDecoder(r.Body).Decode(&checkoutItem); err != nil {
+	var library Library
+	if err := json.NewDecoder(r.Body).Decode(&library); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		log.Printf("could not write Block: %v", err)
 		w.Write([]byte("could not write block"))
 		return
 	}
 
-	BlockChain.AddBlock(checkoutItem)
-	resp, err := json.MarshalIndent(checkoutItem, "", " ")
+	BlockChain.AddBlock(library)
+	resp, err := json.MarshalIndent(library, "", " ")
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		log.Printf("could not marshal payload: %v", err)
+		log.Printf("could not borrow the book: %v", err)
 		w.Write([]byte("could not write block"))
 		return
 	}
@@ -147,14 +146,14 @@ func newBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h := md5.New()
+	h := sha256.New()
 	io.WriteString(h, book.ISBN+book.PublishDate)
 	book.ID = fmt.Sprintf("%x", h.Sum(nil))
 
 	resp, err := json.MarshalIndent(book, "", " ")
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		log.Printf("could not marshal payload: %v", err)
+		log.Printf("could not borrow the book: %v", err)
 		w.Write([]byte("could not save book data"))
 		return
 	}
